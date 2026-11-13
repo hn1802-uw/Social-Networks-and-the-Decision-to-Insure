@@ -1,7 +1,7 @@
 [project]
 name = "student-project"
 version = "0.1.0"
-description = "Replication of Lindo et al. (2010) - Academic Probation RDD Analysis"
+description = "Replication and extension of Cai, de Janvry & Sadoulet (2015): Social Networks and the Decision to Insure"
 requires-python = ">=3.11"
 
 [tool.ruff]

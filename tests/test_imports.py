@@ -1,22 +1,26 @@
 """Smoke tests to verify all modules can be imported."""
 
 
-def test_import_tables():
-    """Test that tables module can be imported."""
-    from auxiliary import tables
+def test_import_data():
+    from auxiliary import data
 
-    assert hasattr(tables, "create_table1")
+    assert hasattr(data, "load_analysis_data")
 
 
-def test_import_predictions():
-    """Test that predictions module can be imported."""
-    from auxiliary import predictions
+def test_import_estimation():
+    from auxiliary import estimation
 
-    assert hasattr(predictions, "prepare_data")
+    for name in (
+        "regression_table",
+        "eq1_network_model",
+        "eq2_price_model",
+        "eq3_knowledge_model",
+        "eq4_info_iv_model",
+    ):
+        assert hasattr(estimation, name)
 
 
 def test_import_plots():
-    """Test that plots module can be imported."""
     from auxiliary import plots
 
-    assert hasattr(plots, "plot_figure1")
+    assert hasattr(plots, "plot_dag")
