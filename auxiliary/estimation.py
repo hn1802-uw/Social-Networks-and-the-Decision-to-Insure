@@ -165,6 +165,14 @@ REGRESSOR_LABELS = {
 }
 
 
+STACK_LABELS = {
+    "inter_pre_takeup_iv": "Default x network in 1st round session",
+    "default": "1st round default (1 = buy, 0 = not buy)",
+    "network_rate_pretakeup": "1st round network's take-up rate",
+    "pre_takeup_rate": "1st round overall take-up rate",
+}
+
+
 class RegResult:
     """Minimal fit container for estimators pyfixest cannot run (e.g. 2SLS with
     several endogenous regressors), so ``regression_table`` treats all fits alike."""
@@ -232,7 +240,7 @@ def regression_table(fit, labels=None):
     return pd.concat([table, footer])[["Estimate", "Std. Error", "P-Value", "N"]]
 
 
-def two_sls(df, y, endog, instruments, exog=(), fe=None, cluster=CLUSTER):
+def two_sls(df, y, endog, instruments, exog=(), fe=None, cluster=CLUSTER, small=True):
     """2SLS with any number of endogenous regressors, via ``linearmodels.IV2SLS``.
 
     Includes a constant; ``fe`` enters as dummies. Standard errors are clustered
@@ -240,6 +248,9 @@ def two_sls(df, y, endog, instruments, exog=(), fe=None, cluster=CLUSTER):
     with G - 1 degrees of freedom, so the output reproduces Stata's
     ``ivreg ..., cluster()``. R-squared uses the structural residuals, so it can
     be negative.
+
+    ``small=False`` drops the small-sample correction and uses normal p-values,
+    as Stata's ``ivregress 2sls`` does (the paper's Table 7 cols. 4 and 6).
     """
     endog, instruments, exog = list(endog), list(instruments), list(exog)
     cols = [y, *endog, *instruments, *exog, cluster] + ([fe] if fe else [])
@@ -253,14 +264,15 @@ def two_sls(df, y, endog, instruments, exog=(), fe=None, cluster=CLUSTER):
     clusters = pd.factorize(d[cluster])[0]
     res = IV2SLS(
         d[y].astype(float), W, d[endog].astype(float), d[instruments].astype(float)
-    ).fit(cov_type="clustered", clusters=clusters, debiased=True)
+    ).fit(cov_type="clustered", clusters=clusters, debiased=small)
 
+    # Account for the difference between IV2SLS in Python and Strata (used by paper)
     G = clusters.max() + 1
     coefs = pd.DataFrame(
         {
             "Estimate": res.params,
             "Std. Error": res.std_errors,
-            "P-Value": 2 * stats.t.sf(np.abs(res.tstats), G - 1),
+            "P-Value": 2 * (stats.t.sf(np.abs(res.tstats), G - 1) if small else stats.norm.sf(np.abs(res.tstats))),
         }
     )
     coefs = coefs.loc[[v for v in coefs.index if not v.startswith("fe_")]]
@@ -324,38 +336,85 @@ def eq3_knowledge_model(df_full, controls=HH_X, fe=FE, cluster=CLUSTER):
 
 
 def eq4_info_iv_model(df_full, controls=HH_X_IV, fe=FE, cluster=CLUSTER):
-    """Eq. (4), paper Table 7 col. 5 (2SLS): Takeup on TakeupRate,
-    TakeupRateNetwork, NoInfo, both rates x NoInfo, Intensive, X and eta_j.
+    """Eq. (4), paper Table 7 cols. 4-7: friends' decisions vs. overall take-up.
 
-    Sample: second-round households told nothing or shown the first-round list
-    of individual decisions (``delay == 1 & info_takeup_rate != 1``). As in the
-    paper the rates are interacted with ``info_none``, so the main TakeupRate
-    coefficients are the effects for *informed* farmers. Endogenous: the two
-    rates and their interactions. Instruments: default, default x share of
-    friends in a first-round session, that share itself, and the first two
-    interacted with ``info_none``. ``analysis.do`` line 255.
+    Returns ``{label: fit}`` for four second-round regressions of take-up:
+
+    * (4) IV, households shown the first-round list of decisions
+      (``info_takeup_list == 1``). Endogenous: TakeupRate and TakeupRateNetwork;
+      instruments: default and default x share of friends in a first-round session.
+    * (5) Reduced form on that subsample: take-up on the two instruments.
+    * (6) IV, households told nothing (``info_none == 1``).
+    * (7) Reduced form on that subsample.
+
+    The reduced forms do not use the network rate, so they keep households with
+    a missing one and have more observations than the IV columns, as in the
+    paper. ``analysis.do`` lines 259-269 (the do-file's column comments are off
+    by one; the layout here follows the published table).
     """
     d = _round2(df_full)
-    d = d[d["info_takeup_rate"] != 1].copy()
-    d["inter_pre_none"] = d["pre_takeup_rate"] * d["info_none"]
-    d["inter_prenetwork_none"] = d["network_rate_pretakeup"] * d["info_none"]
     d["inter_pre_takeup_iv"] = d["network_rate_presession"] * d["default"]
-    d["inter_pre_none_iv"] = d["default"] * d["info_none"]
-    d["inter_prenetwork_none_iv1"] = d["inter_pre_takeup_iv"] * d["info_none"]
-    fit = two_sls(
-        d,
-        "takeup_survey",
-        endog=["network_rate_pretakeup", "pre_takeup_rate", "inter_pre_none", "inter_prenetwork_none"],
-        instruments=[
-            "inter_pre_takeup_iv",
-            "network_rate_presession",
-            "default",
-            "inter_pre_none_iv",
-            "inter_prenetwork_none_iv1",
-        ],
-        exog=["info_none", "intensive", *controls],
-        fe=fe,
-        cluster=cluster,
-    )
-    fit.coefs = fit.coefs.drop(index="Intercept")  # absorbed by the FE in the paper
-    return _tag(fit, controls, (), fe, iv=True)
+    arms = {"informed": d[d["info_takeup_list"] == 1], "no info": d[d["info_none"] == 1]}
+    endog = ["network_rate_pretakeup", "pre_takeup_rate"]
+    instr = ["inter_pre_takeup_iv", "default"]
+
+    fits = {}
+    for (iv_col, rf_col), (arm, sub) in zip([(4, 5), (6, 7)], arms.items()):
+        iv = two_sls(
+            sub, "takeup_survey", endog, instr, exog=["intensive", *controls], fe=fe,
+            cluster=cluster, small=False,
+        )
+        iv.coefs = iv.coefs.drop(index="Intercept")  # absorbed by the FE in the paper
+        fits[f"({iv_col}) IV, {arm}"] = _tag(iv, [*controls, "intensive"], (), fe, iv=True)
+        rhs = _rhs([*instr, "intensive", *controls])
+        rf = pf.feols(f"takeup_survey ~ {rhs} | {fe}", sub, vcov={"CRV1": cluster}, ssc=STATA_SSC)
+        fits[f"({rf_col}) RF-OLS, {arm}"] = _tag(rf, [*controls, "intensive"], (), fe)
+    return fits
+
+
+def stacked_regression_table(fits, labels=None, digits=3):
+    """Table with one Estimate / P-Value column pair per fit (cf. the paper's Table 7).
+
+    ``fits`` is ``{column label: fit}``. Standard errors and significance stars
+    are left out; the p-values are coloured with the same code as ``style_table``
+    (red < 0.001, orange < 0.01, yellow < 0.05). Observations, fixed effects,
+    controls and R-squared (blank for 2SLS) follow the regressors. Returns a
+    styled table ready to display.
+    """
+    from auxiliary.data import VARIABLE_LABELS
+
+    labels = {**VARIABLE_LABELS, **REGRESSOR_LABELS, **STACK_LABELS, **(labels or {})}
+    results = {k: _as_result(f) for k, f in fits.items()}
+    specs = {k: getattr(f, "table_spec", {}) for k, f in fits.items()}
+    hidden = {v for sp in specs.values() for v in (*sp.get("controls", []), *sp.get("netsize", []))}
+
+    order = []
+    for r in results.values():
+        order += [v for v in r.coefs.index if v not in hidden and v not in order]
+
+    cols = pd.MultiIndex.from_product([list(results), ["Estimate", "P-Value"]])
+    table = pd.DataFrame(index=[labels.get(v, v) for v in order], columns=cols, dtype=object)
+    for k, r in results.items():
+        for v in order:
+            if v in r.coefs.index:
+                table.loc[labels.get(v, v), (k, "Estimate")] = r.coefs.loc[v, "Estimate"]
+                table.loc[labels.get(v, v), (k, "P-Value")] = r.coefs.loc[v, "P-Value"]
+
+    def yes(k, key):
+        return "Yes" if specs[k].get(key) else "No"
+
+    footer = pd.DataFrame(index=["Observations", "Village fixed effects", "Household characteristics", "R-squared"], columns=cols, dtype=object)
+    for k, r in results.items():
+        footer[(k, "Estimate")] = [
+            f"{r.n:,}", yes(k, "fe"), yes(k, "controls"),
+            "" if specs[k].get("iv") else f"{r.r2:.{digits}f}",
+        ]
+    table = pd.concat([table, footer])
+
+    def _fmt(v):
+        if isinstance(v, str):
+            return v
+        return "" if pd.isna(v) else f"{v:.{digits}f}"
+
+    pcols = [c for c in table.columns if c[1] == "P-Value"]
+    return table.style.format(_fmt).map(color_pvalues, subset=pcols)
