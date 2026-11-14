@@ -35,6 +35,7 @@ def color_pvalues(value):
 
 def style_table(table, pcol="P-Value", digits=3):
     """Round numeric columns and colour the p-value column."""
+
     def _num_or_text(v):
         if isinstance(v, str):
             return v
@@ -47,6 +48,7 @@ def style_table(table, pcol="P-Value", digits=3):
     for col in ("N", "Missing", "missing"):
         if col in table.columns:
             fmt[col] = lambda v: "" if pd.isna(v) else f"{v:.0f}"
+
     # Min / Max: show whole numbers without decimals (0, 1, 86), others as usual.
     def _whole_or_float(v):
         if pd.isna(v):
@@ -109,7 +111,15 @@ def balance_table(df, treatment, covariates, labels=None, fe=None, cluster=CLUST
     return pd.DataFrame(rows).set_index("Variable")
 
 
-PRICE_BALANCE_VARS = ["age", "agpop", "earlyarea", "literacy", "male", "risk_averse", "intensive"]
+PRICE_BALANCE_VARS = [
+    "age",
+    "agpop",
+    "earlyarea",
+    "literacy",
+    "male",
+    "risk_averse",
+    "intensive",
+]
 
 
 def price_balance_table(price_df, covariates=PRICE_BALANCE_VARS, labels=None):
@@ -143,7 +153,15 @@ regressions in ``analysis.do`` do, so standard errors match the paper exactly.""
 PRICE_NETSIZE = [f"friend{k}" for k in range(1, 9)]
 """NetSize in the price sample, where farmers listed up to 8 friends."""
 
-HH_X = ["male", "age", "agpop", "ricearea_2010", "literacy", "risk_averse", "disaster_prob"]
+HH_X = [
+    "male",
+    "age",
+    "agpop",
+    "ricearea_2010",
+    "literacy",
+    "risk_averse",
+    "disaster_prob",
+]
 """Household characteristics X in the paper's Tables 2, 5 and 6 (``analysis.do``)."""
 
 HH_X_IV = ["male", "age", "agpop", "ricearea_2010", "literacy"]
@@ -189,7 +207,9 @@ def _as_result(fit):
     if isinstance(fit, RegResult):
         return fit
     t = fit.tidy()
-    coefs = t[["Estimate", "Std. Error", "Pr(>|t|)"]].rename(columns={"Pr(>|t|)": "P-Value"})
+    coefs = t[["Estimate", "Std. Error", "Pr(>|t|)"]].rename(
+        columns={"Pr(>|t|)": "P-Value"}
+    )
     return RegResult(coefs, int(fit._N), float(fit._r2), float(fit._adj_r2))
 
 
@@ -216,7 +236,9 @@ def regression_table(fit, labels=None):
     labels = {**VARIABLE_LABELS, **REGRESSOR_LABELS, **(labels or {})}
     hidden = set(spec["controls"]) | set(spec["netsize"])
 
-    table = res.coefs.loc[[v for v in res.coefs.index if v not in hidden]].astype(object)
+    table = res.coefs.loc[[v for v in res.coefs.index if v not in hidden]].astype(
+        object
+    )
     table["N"] = res.n
     table.index = [labels.get(v, v) for v in table.index]
 
@@ -259,7 +281,8 @@ def two_sls(df, y, endog, instruments, exog=(), fe=None, cluster=CLUSTER, small=
     W.insert(0, "Intercept", 1.0)
     if fe:
         W = pd.concat(
-            [W, pd.get_dummies(d[fe], prefix="fe", drop_first=True, dtype=float)], axis=1
+            [W, pd.get_dummies(d[fe], prefix="fe", drop_first=True, dtype=float)],
+            axis=1,
         )
     # Stata silently omits collinear regressors (e.g. a friend-count dummy that
     # is all zero in the estimation sample); do the same so the fit runs.
@@ -276,7 +299,12 @@ def two_sls(df, y, endog, instruments, exog=(), fe=None, cluster=CLUSTER, small=
         {
             "Estimate": res.params,
             "Std. Error": res.std_errors,
-            "P-Value": 2 * (stats.t.sf(np.abs(res.tstats), G - 1) if small else stats.norm.sf(np.abs(res.tstats))),
+            "P-Value": 2
+            * (
+                stats.t.sf(np.abs(res.tstats), G - 1)
+                if small
+                else stats.norm.sf(np.abs(res.tstats))
+            ),
         }
     )
     coefs = coefs.loc[[v for v in coefs.index if not v.startswith("fe_")]]
@@ -303,7 +331,9 @@ def eq1_network_model(df_full, controls=HH_X, fe=FE, cluster=CLUSTER):
     """
     sub = _no_info(df_full)
     rhs = _rhs(["network_rate_preintensive", "intensive", *controls, *NETSIZE])
-    fit = pf.feols(f"takeup_survey ~ {rhs} | {fe}", sub, vcov={"CRV1": cluster}, ssc=STATA_SSC)
+    fit = pf.feols(
+        f"takeup_survey ~ {rhs} | {fe}", sub, vcov={"CRV1": cluster}, ssc=STATA_SSC
+    )
     return _tag(fit, controls, NETSIZE, fe)
 
 
@@ -321,7 +351,14 @@ def eq2_price_model(price_df, controls=PRICE_X, fe="address", cluster=CLUSTER):
         d[f"friend{k}"] = (d["network_obs"] == k).astype(float)
     d.loc[d["network_obs"].isna(), PRICE_NETSIZE] = np.nan
     rhs = _rhs(
-        ["price", "network_rate_preintensive", "price_x_net", "intensive", *controls, *PRICE_NETSIZE]
+        [
+            "price",
+            "network_rate_preintensive",
+            "price_x_net",
+            "intensive",
+            *controls,
+            *PRICE_NETSIZE,
+        ]
     )
     fit = pf.feols(f"takeup ~ {rhs} | {fe}", d, vcov={"CRV1": cluster}, ssc=STATA_SSC)
     return _tag(fit, controls, PRICE_NETSIZE, fe)
@@ -335,7 +372,9 @@ def eq3_knowledge_model(df_full, controls=HH_X, fe=FE, cluster=CLUSTER):
     """
     sub = _no_info(df_full)
     rhs = _rhs(["network_rate_preintensive", "intensive", *controls])
-    fit = pf.feols(f"understanding ~ {rhs} | {fe}", sub, vcov={"CRV1": cluster}, ssc=STATA_SSC)
+    fit = pf.feols(
+        f"understanding ~ {rhs} | {fe}", sub, vcov={"CRV1": cluster}, ssc=STATA_SSC
+    )
     return _tag(fit, controls, (), fe)
 
 
@@ -358,20 +397,33 @@ def eq4_info_iv_model(df_full, controls=HH_X_IV, fe=FE, cluster=CLUSTER):
     """
     d = _round2(df_full)
     d["inter_pre_takeup_iv"] = d["network_rate_presession"] * d["default"]
-    arms = {"informed": d[d["info_takeup_list"] == 1], "no info": d[d["info_none"] == 1]}
+    arms = {
+        "informed": d[d["info_takeup_list"] == 1],
+        "no info": d[d["info_none"] == 1],
+    }
     endog = ["network_rate_pretakeup", "pre_takeup_rate"]
     instr = ["inter_pre_takeup_iv", "default"]
 
     fits = {}
     for (iv_col, rf_col), (arm, sub) in zip([(4, 5), (6, 7)], arms.items()):
         iv = two_sls(
-            sub, "takeup_survey", endog, instr, exog=["intensive", *controls], fe=fe,
-            cluster=cluster, small=False,
+            sub,
+            "takeup_survey",
+            endog,
+            instr,
+            exog=["intensive", *controls],
+            fe=fe,
+            cluster=cluster,
+            small=False,
         )
         iv.coefs = iv.coefs.drop(index="Intercept")  # absorbed by the FE in the paper
-        fits[f"({iv_col}) IV, {arm}"] = _tag(iv, [*controls, "intensive"], (), fe, iv=True)
+        fits[f"({iv_col}) IV, {arm}"] = _tag(
+            iv, [*controls, "intensive"], (), fe, iv=True
+        )
         rhs = _rhs([*instr, "intensive", *controls])
-        rf = pf.feols(f"takeup_survey ~ {rhs} | {fe}", sub, vcov={"CRV1": cluster}, ssc=STATA_SSC)
+        rf = pf.feols(
+            f"takeup_survey ~ {rhs} | {fe}", sub, vcov={"CRV1": cluster}, ssc=STATA_SSC
+        )
         fits[f"({rf_col}) RF-OLS, {arm}"] = _tag(rf, [*controls, "intensive"], (), fe)
     return fits
 
@@ -390,27 +442,46 @@ def stacked_regression_table(fits, labels=None, digits=3):
     labels = {**VARIABLE_LABELS, **REGRESSOR_LABELS, **STACK_LABELS, **(labels or {})}
     results = {k: _as_result(f) for k, f in fits.items()}
     specs = {k: getattr(f, "table_spec", {}) for k, f in fits.items()}
-    hidden = {v for sp in specs.values() for v in (*sp.get("controls", []), *sp.get("netsize", []))}
+    hidden = {
+        v
+        for sp in specs.values()
+        for v in (*sp.get("controls", []), *sp.get("netsize", []))
+    }
 
     order = []
     for r in results.values():
         order += [v for v in r.coefs.index if v not in hidden and v not in order]
 
     cols = pd.MultiIndex.from_product([list(results), ["Estimate", "P-Value"]])
-    table = pd.DataFrame(index=[labels.get(v, v) for v in order], columns=cols, dtype=object)
+    table = pd.DataFrame(
+        index=[labels.get(v, v) for v in order], columns=cols, dtype=object
+    )
     for k, r in results.items():
         for v in order:
             if v in r.coefs.index:
-                table.loc[labels.get(v, v), (k, "Estimate")] = r.coefs.loc[v, "Estimate"]
+                table.loc[labels.get(v, v), (k, "Estimate")] = r.coefs.loc[
+                    v, "Estimate"
+                ]
                 table.loc[labels.get(v, v), (k, "P-Value")] = r.coefs.loc[v, "P-Value"]
 
     def yes(k, key):
         return "Yes" if specs[k].get(key) else "No"
 
-    footer = pd.DataFrame(index=["Observations", "Village fixed effects", "Household characteristics", "R-squared"], columns=cols, dtype=object)
+    footer = pd.DataFrame(
+        index=[
+            "Observations",
+            "Village fixed effects",
+            "Household characteristics",
+            "R-squared",
+        ],
+        columns=cols,
+        dtype=object,
+    )
     for k, r in results.items():
         footer[(k, "Estimate")] = [
-            f"{r.n:,}", yes(k, "fe"), yes(k, "controls"),
+            f"{r.n:,}",
+            yes(k, "fe"),
+            yes(k, "controls"),
             "" if specs[k].get("iv") else f"{r.r2:.{digits}f}",
         ]
     table = pd.concat([table, footer])

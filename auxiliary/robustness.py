@@ -69,7 +69,9 @@ def _ols(df, y, regressors, controls=(), netsize=(), fe=FE, cluster=CLUSTER):
 
 def _iv(df, y, endog, instruments, exog, controls, netsize=(), fe=FE, small=True):
     """2SLS tagged for the table helpers; ``small`` as in ``two_sls``."""
-    fit = two_sls(df, y, endog, instruments, exog=[*exog, *controls, *netsize], fe=fe, small=small)
+    fit = two_sls(
+        df, y, endog, instruments, exog=[*exog, *controls, *netsize], fe=fe, small=small
+    )
     fit.coefs = fit.coefs.drop(index="Intercept")  # absorbed by the FE in the paper
     return _tag(fit, controls, netsize, fe, iv=True)
 
@@ -103,31 +105,58 @@ def robust_eq1(df_full):
     fits = {
         "Baseline (T2 c2)": eq1_network_model(df_full),
         "Simple spillover (T2 c3)": _ols(
-            sub, "takeup_survey", ["network_rate_preintensive", "network_rate_presimple", "intensive"],
+            sub,
+            "takeup_survey",
+            ["network_rate_preintensive", "network_rate_presimple", "intensive"],
             netsize=NETSIZE,
         ),
         "x Intensive (T2 c4)": _ols(
-            sub, "takeup_survey", ["network_rate_preintensive", "intensive", "inter_network_educ"],
-            HH_X, NETSIZE,
+            sub,
+            "takeup_survey",
+            ["network_rate_preintensive", "intensive", "inter_network_educ"],
+            HH_X,
+            NETSIZE,
         ),
         "Nonlinear x Int. (T2 c5)": _ols(
-            sub, "takeup_survey",
-            [*nonlinear, "intensive", "inter_network_educ1", "inter_network_educ2", "inter_network_educ3"],
-            HH_X, NETSIZE,
+            sub,
+            "takeup_survey",
+            [
+                *nonlinear,
+                "intensive",
+                "inter_network_educ1",
+                "inter_network_educ2",
+                "inter_network_educ3",
+            ],
+            HH_X,
+            NETSIZE,
         ),
-        "Nonlinear (T3 c3)": _ols(sub, "takeup_survey", [*nonlinear, "intensive"], HH_X, NETSIZE),
+        "Nonlinear (T3 c3)": _ols(
+            sub, "takeup_survey", [*nonlinear, "intensive"], HH_X, NETSIZE
+        ),
         "x Default (TA4 c1)": _ols(
-            sub, "takeup_survey",
-            ["network_rate_preintensive", "default", "inter_default_network", "intensive"],
-            HH_X, NETSIZE,
+            sub,
+            "takeup_survey",
+            [
+                "network_rate_preintensive",
+                "default",
+                "inter_default_network",
+                "intensive",
+            ],
+            HH_X,
+            NETSIZE,
         ),
     }
 
     # Table 2 col. 6: round 1 plus round-2 no-info households with no friend
     # in a first-round intensive session (``nofriend`` in analysis.do).
     d = df_full.copy()
-    informed_friend = (d["delay"] == 1) & (d["info_none"] == 1) & (d["network_yes"] == 1)
-    d = d[(d["delay"] == 0) | ((d["delay"] == 1) & (d["info_none"] == 1) & ~informed_friend)]
+    informed_friend = (
+        (d["delay"] == 1) & (d["info_none"] == 1) & (d["network_yes"] == 1)
+    )
+    d = d[
+        (d["delay"] == 0)
+        | ((d["delay"] == 1) & (d["info_none"] == 1) & ~informed_friend)
+    ]
     d["inter_inten_delay"] = d["intensive"] * d["delay"]
     fits["Non-friend spillover (T2 c6)"] = _ols(
         d, "takeup_survey", ["intensive", "delay", "inter_inten_delay"], HH_X
@@ -167,12 +196,23 @@ def robust_eq2(price_df):
             d, "takeup", [*base, "intensive"], PRICE_X, PRICE_NETSIZE, fe=fe
         ),
         "Friends' prices (T4 c3)": _ols(
-            d, "takeup", [*base, "price_x_net", "price_high_ratio", "price_low_ratio", "intensive"],
-            PRICE_X, PRICE_NETSIZE, fe=fe,
+            d,
+            "takeup",
+            [*base, "price_x_net", "price_high_ratio", "price_low_ratio", "intensive"],
+            PRICE_X,
+            PRICE_NETSIZE,
+            fe=fe,
         ),
         "Friends' take-up IV (T7 c9)": _iv(
-            d, "takeup", ["network_rate_pretakeup"], ["network_avgprice"],
-            ["price", "intensive"], PRICE_X, PRICE_NETSIZE, fe=fe, small=False,
+            d,
+            "takeup",
+            ["network_rate_pretakeup"],
+            ["network_avgprice"],
+            ["price", "intensive"],
+            PRICE_X,
+            PRICE_NETSIZE,
+            fe=fe,
+            small=False,
         ),
     }
 
@@ -201,11 +241,18 @@ def robust_eq3(df_full):
             no_info, "understanding", ["intensive", "delay", "inter_inten_delay"], HH_X
         ),
         "x Has friend (T5 c2)": _ols(
-            sub, "understanding", ["intensive", "network_yes", "inter_inten_netyes"], HH_X
+            sub,
+            "understanding",
+            ["intensive", "network_yes", "inter_inten_netyes"],
+            HH_X,
         ),
         "Friends' knowledge IV (T5 c4)": _iv(
-            sub, "understanding", ["knowledge_network"], ["network_rate_preintensive"],
-            ["intensive"], HH_X,
+            sub,
+            "understanding",
+            ["knowledge_network"],
+            ["network_rate_preintensive"],
+            ["intensive"],
+            HH_X,
         ),
     }
 
@@ -248,41 +295,88 @@ def robust_eq4(df_full):
 
     fits = {
         "Baseline IV informed (T7 c4)": eq4_info_iv_model(df_full)["(4) IV, informed"],
-        "First stage (T7 c1)": _ols(t7, "network_rate_pretakeup", ["inter_pre_takeup_iv", "intensive"], X),
+        "First stage (T7 c1)": _ols(
+            t7, "network_rate_pretakeup", ["inter_pre_takeup_iv", "intensive"], X
+        ),
         "Pooled OLS (T7 c2)": _ols(
-            t7, "takeup_survey",
-            ["pre_takeup_rate", "network_rate_pretakeup", "info_none", "inter_pre_none",
-             "inter_prenetwork_none", "intensive"], X,
+            t7,
+            "takeup_survey",
+            [
+                "pre_takeup_rate",
+                "network_rate_pretakeup",
+                "info_none",
+                "inter_pre_none",
+                "inter_prenetwork_none",
+                "intensive",
+            ],
+            X,
         ),
         "Pooled IV (T7 c3)": _iv(
-            t7, "takeup_survey",
-            ["network_rate_pretakeup", "pre_takeup_rate", "inter_pre_none", "inter_prenetwork_none"],
-            ["inter_pre_takeup_iv", "network_rate_presession", "default", "inter_pre_none_iv",
-             "inter_prenetwork_none_iv1"],
-            ["info_none", "intensive"], X,
+            t7,
+            "takeup_survey",
+            [
+                "network_rate_pretakeup",
+                "pre_takeup_rate",
+                "inter_pre_none",
+                "inter_prenetwork_none",
+            ],
+            [
+                "inter_pre_takeup_iv",
+                "network_rate_presession",
+                "default",
+                "inter_pre_none_iv",
+                "inter_prenetwork_none_iv1",
+            ],
+            ["info_none", "intensive"],
+            X,
         ),
         "Pooled RF (T7 c6)": _ols(
-            t7, "takeup_survey",
-            ["inter_pre_takeup_iv", "default", "inter_pre_none_iv", "inter_prenetwork_none_iv1",
-             "info_none", "intensive"], X,
+            t7,
+            "takeup_survey",
+            [
+                "inter_pre_takeup_iv",
+                "default",
+                "inter_pre_none_iv",
+                "inter_prenetwork_none_iv1",
+                "info_none",
+                "intensive",
+            ],
+            X,
         ),
     }
 
     overall = {
         "Overall OLS pooled (T6 c2)": _ols(
-            d, "takeup_survey", ["pre_takeup_rate", "info_none", "inter_pre_none", "intensive"], X6
+            d,
+            "takeup_survey",
+            ["pre_takeup_rate", "info_none", "inter_pre_none", "intensive"],
+            X6,
         ),
         "Overall IV pooled (T6 c3)": _iv(
-            d, "takeup_survey", ["pre_takeup_rate", "inter_pre_none"], ["default", "inter_pre_none_iv"],
-            ["info_none", "intensive"], X6,
+            d,
+            "takeup_survey",
+            ["pre_takeup_rate", "inter_pre_none"],
+            ["default", "inter_pre_none_iv"],
+            ["info_none", "intensive"],
+            X6,
         ),
         "Overall IV informed (T6 c4)": _iv(
-            d[d["info_none"] == 0], "takeup_survey", ["pre_takeup_rate"], ["default"],
-            ["intensive"], X6, small=False,
+            d[d["info_none"] == 0],
+            "takeup_survey",
+            ["pre_takeup_rate"],
+            ["default"],
+            ["intensive"],
+            X6,
+            small=False,
         ),
         "Overall IV no info (T6 c5)": _iv(
-            d[d["info_none"] == 1], "takeup_survey", ["pre_takeup_rate"], ["default"],
-            ["intensive"], X6, small=False,
+            d[d["info_none"] == 1],
+            "takeup_survey",
+            ["pre_takeup_rate"],
+            ["default"],
+            ["intensive"],
+            X6,
+            small=False,
         ),
     }
     return fits, overall

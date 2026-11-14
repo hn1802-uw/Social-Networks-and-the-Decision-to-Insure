@@ -15,9 +15,11 @@ BLUE, ORANGE, AQUA, YELLOW, MAGENTA, RED = (
     "#1baf7a",
     "#eda100",
     "#e87ba4",
-    "#ff0000"
+    "#ff0000",
 )
 INK, INK_2, MUTED, GRID = "#0b0b0b", "#52514e", "#8a8984", "#e4e3df"
+
+
 def set_style():
     """Matplotlib defaults used by every figure."""
     plt.rcParams.update(
@@ -72,7 +74,13 @@ def plot_dag():
     W = 2.3
     # (x, y, name, body, kind) with kind in {rand, obs, hid, out}
     nodes = {
-        "net": (1.3, 5.0, "NET", "share of listed friends in a\nround-1 intensive session", "rand"),
+        "net": (
+            1.3,
+            5.0,
+            "NET",
+            "share of listed friends in a\nround-1 intensive session",
+            "rand",
+        ),
         "own": (1.3, 3.9, "Own session", "Intensive vs simple", "rand"),
         "default": (1.3, 1.7, "Village default", "Buy vs not buy", "rand"),
         "know": (4.6, 4.45, "Knowledge", "Test score", "obs"),
@@ -80,7 +88,13 @@ def plot_dag():
         "u": (4.6, 0.1, "Unobserved", "Trust, Ties", "hid"),
         "price": (8.0, 5.0, "Price", "7 random levels", "rand"),
         "take": (8.0, 3.3, "Take-up", "Buys insurance", "out"),
-        "info": (8.0, 1.5, "Info revealed", "None / overall rate /\nindividual list", "rand"),
+        "info": (
+            8.0,
+            1.5,
+            "Info revealed",
+            "None / overall rate /\nindividual list",
+            "rand",
+        ),
     }
     # Edges: (from, to, style).
     edges = [
@@ -120,10 +134,28 @@ def plot_dag():
         ax.add_patch(patch)
         patches[key] = patch
         top = y + H / 2 - 0.2
-        ax.text(x, top, name, ha="center", va="center", fontsize=9.5,
-                fontweight="bold", color=INK, zorder=3)
-        ax.text(x, top - 0.1 - 0.1 * (body.count("\n") + 1), body, ha="center",
-                va="center", fontsize=8, color=INK_2, zorder=3, linespacing=1.15)
+        ax.text(
+            x,
+            top,
+            name,
+            ha="center",
+            va="center",
+            fontsize=9.5,
+            fontweight="bold",
+            color=INK,
+            zorder=3,
+        )
+        ax.text(
+            x,
+            top - 0.1 - 0.1 * (body.count("\n") + 1),
+            body,
+            ha="center",
+            va="center",
+            fontsize=8,
+            color=INK_2,
+            zorder=3,
+            linespacing=1.15,
+        )
 
     for a, b, style in edges:
         (xa, ya, *_), (xb, yb, *_) = nodes[a], nodes[b]
@@ -146,18 +178,40 @@ def plot_dag():
             zorder=1,
         )
 
-    ax.text(0.0, 5.75, "Causual Directed Acyclic Graph (DAG)",
-            fontsize=11, fontweight="bold", color=INK, va="top")
+    ax.text(
+        0.0,
+        5.75,
+        "Causual Directed Acyclic Graph (DAG)",
+        fontsize=11,
+        fontweight="bold",
+        color=INK,
+        va="top",
+    )
     # Key
     ky = -0.55
     for x, label, fc, ec, ls in [
-        (0.0, "Randomized by design", (*plt.matplotlib.colors.to_rgb(BLUE), 0.12), BLUE, "-"),
+        (
+            0.0,
+            "Randomized by design",
+            (*plt.matplotlib.colors.to_rgb(BLUE), 0.12),
+            BLUE,
+            "-",
+        ),
         (3.0, "Observed, not randomized", "white", MUTED, "-"),
         (6.0, "Unobserved confounding variables", "white", MUTED, "--"),
     ]:
-        ax.add_patch(FancyBboxPatch((x, ky - 0.1), 0.3, 0.2,
-                                    boxstyle="round,pad=0.01,rounding_size=0.05",
-                                    fc=fc, ec=ec, lw=1.2, ls=ls))
+        ax.add_patch(
+            FancyBboxPatch(
+                (x, ky - 0.1),
+                0.3,
+                0.2,
+                boxstyle="round,pad=0.01,rounding_size=0.05",
+                fc=fc,
+                ec=ec,
+                lw=1.2,
+                ls=ls,
+            )
+        )
         ax.text(x + 0.42, ky, label, va="center", fontsize=8.5, color=INK_2)
     return fig
 
@@ -195,7 +249,9 @@ def plot_household_design(df=None):
 
     def box(x, y, text, w=3.0, h=1.5):
         ax.add_patch(
-            plt.Rectangle((x - w / 2, y - h / 2), w, h, fc="white", ec="black", lw=1.1, zorder=2)
+            plt.Rectangle(
+                (x - w / 2, y - h / 2), w, h, fc="white", ec="black", lw=1.1, zorder=2
+            )
         )
         ax.text(x, y, text, ha="center", va="center", fontsize=9, zorder=3)
 
@@ -214,7 +270,10 @@ def plot_household_design(df=None):
     ax.text(10.5, 8.25, "3 days later", ha="center", fontsize=10)
 
     # Level 1: session type.
-    r1 = [(1.6, "Simple1", dict(delay=0, intensive=0)), (5.4, "Intensive1", dict(delay=0, intensive=1))]
+    r1 = [
+        (1.6, "Simple1", dict(delay=0, intensive=0)),
+        (5.4, "Intensive1", dict(delay=0, intensive=1)),
+    ]
     for x, label, c in r1:
         box(x, 5.4, f"{label}\n({n(**c):,} HHs)", w=3.2)
     tree(3.0, 8.0, 1.4, [1.6, 5.4], 5.4, 1.5)
@@ -233,7 +292,13 @@ def plot_household_design(df=None):
             ("Indiv", dict(info_none=0, info_takeup_list=1)),
         ]
         for x, (label, c) in zip(xs, arms, strict=True):
-            box(x, 1.7, f"{short}-{label}\n({n(delay=1, intensive=inten, **c):,} HHs)", w=3.2, h=1.5)
+            box(
+                x,
+                1.7,
+                f"{short}-{label}\n({n(delay=1, intensive=inten, **c):,} HHs)",
+                w=3.2,
+                h=1.5,
+            )
         tree(x0, 5.4, 1.5, xs, 1.7, 1.5)
 
     ax.text(
@@ -327,9 +392,19 @@ def plot_simulated_estimates(estimates, true_effect):
     estimates = np.asarray(estimates)
 
     fig, ax = plt.subplots(figsize=(9, 4.6))
-    ax.hist(estimates, bins=30, color=AQUA, alpha=0.75, label="Estimates", edgecolor='black')
-    ax.axvline(estimates.mean(), color=RED, lw=2.5, label=f"Mean = {estimates.mean():.3f}")
-    ax.axvline(true_effect, color=INK, ls="--", lw=1.6, label=f"True effect = {true_effect:.3f}")
+    ax.hist(
+        estimates, bins=30, color=AQUA, alpha=0.75, label="Estimates", edgecolor="black"
+    )
+    ax.axvline(
+        estimates.mean(), color=RED, lw=2.5, label=f"Mean = {estimates.mean():.3f}"
+    )
+    ax.axvline(
+        true_effect,
+        color=INK,
+        ls="--",
+        lw=1.6,
+        label=f"True effect = {true_effect:.3f}",
+    )
     ax.grid(False)
     ax.set_xlabel(r"Estimated effect of Knowledge on take-up ($\beta_0$)")
     ax.set_ylabel("Number of simulations")
@@ -362,8 +437,22 @@ def plot_sample_size_convergence(sample_sizes, estimates_by_size, true_effect):
         1, 2, figsize=(13, 4.6), gridspec_kw={"width_ratios": [1.7, 1]}
     )
     for n, d, color in zip(sample_sizes, data, colors, strict=True):
-        ax.hist(d, bins=bins, color=color, alpha=0.5, edgecolor=INK, linewidth=0.4, label=f"n = {n:,}")
-    ax.axvline(true_effect, color="#e8312f", ls="--", lw=2, label=f"True effect = {true_effect:.3f}")
+        ax.hist(
+            d,
+            bins=bins,
+            color=color,
+            alpha=0.5,
+            edgecolor=INK,
+            linewidth=0.4,
+            label=f"n = {n:,}",
+        )
+    ax.axvline(
+        true_effect,
+        color="#e8312f",
+        ls="--",
+        lw=2,
+        label=f"True effect = {true_effect:.3f}",
+    )
     ax.grid(False)
     ax.set_title("Sampling distributions by sample size")
     ax.set_xlabel(r"Estimated effect of Knowledge on take-up ($\beta_0$)")
@@ -373,12 +462,25 @@ def plot_sample_size_convergence(sample_sizes, estimates_by_size, true_effect):
     n = np.array(sample_sizes, dtype=float)
     sds = np.array([d.std() for d in data])
     ax2.plot(n, sds, marker="o", ms=8, color=BLUE, label="Simulated")
-    ax2.plot(n, sds[-1] * np.sqrt(n[-1] / n), ls="--", lw=1.5, color=MUTED, label=r"$\propto 1/\sqrt{n}$")
+    ax2.plot(
+        n,
+        sds[-1] * np.sqrt(n[-1] / n),
+        ls="--",
+        lw=1.5,
+        color=MUTED,
+        label=r"$\propto 1/\sqrt{n}$",
+    )
     ax2.set_title("Uncertainty decreases with sample size")
     ax2.set_xlabel("Sample size (n)")
     ax2.set_ylabel("Standard deviation of estimate")
     ax2.legend(loc="upper right")
 
-    fig.suptitle("Figure 6.2. Convergence as the sample size grows", x=0.01, ha="left", fontsize=11, fontweight="bold")
+    fig.suptitle(
+        "Figure 6.2. Convergence as the sample size grows",
+        x=0.01,
+        ha="left",
+        fontsize=11,
+        fontweight="bold",
+    )
     fig.tight_layout()
     return fig

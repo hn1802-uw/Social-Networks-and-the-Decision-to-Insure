@@ -31,4 +31,4 @@ build/
 *.egg-info/
 
 # Raw paper replication package download (data copied to data/)
-113593-V1/
+paper-raw-data/
