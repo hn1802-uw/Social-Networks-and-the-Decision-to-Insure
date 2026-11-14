@@ -20,7 +20,13 @@ def comparison():
     warnings.filterwarnings("ignore")
     full, price = load_analysis_data(), load_price_data()
     eq4, eq4_overall = robust_eq4(full)
-    fits = {**robust_eq1(full), **robust_eq2(price), **robust_eq3(full), **eq4, **eq4_overall}
+    fits = {
+        **robust_eq1(full),
+        **robust_eq2(price),
+        **robust_eq3(full),
+        **eq4,
+        **eq4_overall,
+    }
     return compare_to_paper(fits)
 
 

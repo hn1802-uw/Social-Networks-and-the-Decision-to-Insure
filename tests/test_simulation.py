@@ -22,5 +22,7 @@ def test_ols_within_recovers_coefficients_with_village_effects():
 
 
 def test_group_means_broadcasts_2d():
-    out = group_means(np.array([[1.0, 10.0], [3.0, 30.0], [5.0, 50.0]]), np.array([0, 0, 1]))
+    out = group_means(
+        np.array([[1.0, 10.0], [3.0, 30.0], [5.0, 50.0]]), np.array([0, 0, 1])
+    )
     assert out.tolist() == [[2.0, 20.0], [2.0, 20.0], [5.0, 50.0]]
