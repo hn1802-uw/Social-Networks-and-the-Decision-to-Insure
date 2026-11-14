@@ -9,12 +9,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Reference categorical palette, fixed order (never cycled).
-BLUE, ORANGE, AQUA, YELLOW, MAGENTA = (
+BLUE, ORANGE, AQUA, YELLOW, MAGENTA, RED = (
     "#2a78d6",
     "#eb6834",
     "#1baf7a",
     "#eda100",
     "#e87ba4",
+    "#ff0000"
 )
 INK, INK_2, MUTED, GRID = "#0b0b0b", "#52514e", "#8a8984", "#e4e3df"
 def set_style():
@@ -305,4 +306,79 @@ def plot_village_design(df=None, price=None):
         fontweight="bold",
         ha="center",
     )
+    return fig
+
+
+# --------------------------------------------------------------------------
+# Section 6: Monte Carlo simulation
+# --------------------------------------------------------------------------
+
+
+def plot_simulated_estimates(estimates, true_effect):
+    """Figure 6.1: sampling distribution of the Knowledge slope under random assignment.
+
+    Parameters
+    ----------
+    estimates : array-like
+        Slope estimates, one per simulation.
+    true_effect : float
+        The coefficient built into the simulated outcomes.
+    """
+    estimates = np.asarray(estimates)
+
+    fig, ax = plt.subplots(figsize=(9, 4.6))
+    ax.hist(estimates, bins=30, color=AQUA, alpha=0.75, label="Estimates", edgecolor='black')
+    ax.axvline(estimates.mean(), color=RED, lw=2.5, label=f"Mean = {estimates.mean():.3f}")
+    ax.axvline(true_effect, color=INK, ls="--", lw=1.6, label=f"True effect = {true_effect:.3f}")
+    ax.grid(False)
+    ax.set_xlabel(r"Estimated effect of Knowledge on take-up ($\beta_0$)")
+    ax.set_ylabel("Number of simulations")
+    ax.legend(loc="upper right")
+    fig.tight_layout()
+    return fig
+
+
+def plot_sample_size_convergence(sample_sizes, estimates_by_size, true_effect):
+    """Figure 6.2: the estimates concentrate on the truth as the sample grows.
+
+    Left: one histogram per sample size, drawn on common bins. Right: the standard
+    deviation of the estimates against a 1/sqrt(n) reference line anchored at the
+    largest sample size.
+
+    Parameters
+    ----------
+    sample_sizes : list of int
+    estimates_by_size : dict
+        ``{n: array of estimates}``.
+    true_effect : float
+        The coefficient built into the simulated outcomes.
+    """
+    data = [np.asarray(estimates_by_size[n]) for n in sample_sizes]
+    bins = np.linspace(min(d.min() for d in data), max(d.max() for d in data), 130)
+    # Viridis from purple (small samples) to green (large samples).
+    colors = plt.cm.viridis(np.linspace(0.1, 1.0, len(data)))
+
+    fig, (ax, ax2) = plt.subplots(
+        1, 2, figsize=(13, 4.6), gridspec_kw={"width_ratios": [1.7, 1]}
+    )
+    for n, d, color in zip(sample_sizes, data, colors, strict=True):
+        ax.hist(d, bins=bins, color=color, alpha=0.5, edgecolor=INK, linewidth=0.4, label=f"n = {n:,}")
+    ax.axvline(true_effect, color="#e8312f", ls="--", lw=2, label=f"True effect = {true_effect:.3f}")
+    ax.grid(False)
+    ax.set_title("Sampling distributions by sample size")
+    ax.set_xlabel(r"Estimated effect of Knowledge on take-up ($\beta_0$)")
+    ax.set_ylabel("Number of simulations")
+    ax.legend(loc="upper right")
+
+    n = np.array(sample_sizes, dtype=float)
+    sds = np.array([d.std() for d in data])
+    ax2.plot(n, sds, marker="o", ms=8, color=BLUE, label="Simulated")
+    ax2.plot(n, sds[-1] * np.sqrt(n[-1] / n), ls="--", lw=1.5, color=MUTED, label=r"$\propto 1/\sqrt{n}$")
+    ax2.set_title("Uncertainty decreases with sample size")
+    ax2.set_xlabel("Sample size (n)")
+    ax2.set_ylabel("Standard deviation of estimate")
+    ax2.legend(loc="upper right")
+
+    fig.suptitle("Figure 6.2. Convergence as the sample size grows", x=0.01, ha="left", fontsize=11, fontweight="bold")
+    fig.tight_layout()
     return fig

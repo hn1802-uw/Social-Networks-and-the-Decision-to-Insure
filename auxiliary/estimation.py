@@ -261,6 +261,10 @@ def two_sls(df, y, endog, instruments, exog=(), fe=None, cluster=CLUSTER, small=
         W = pd.concat(
             [W, pd.get_dummies(d[fe], prefix="fe", drop_first=True, dtype=float)], axis=1
         )
+    # Stata silently omits collinear regressors (e.g. a friend-count dummy that
+    # is all zero in the estimation sample); do the same so the fit runs.
+    _, r = np.linalg.qr(W.to_numpy())
+    W = W.loc[:, np.abs(np.diag(r)) > 1e-10 * np.abs(r).max()]
     clusters = pd.factorize(d[cluster])[0]
     res = IV2SLS(
         d[y].astype(float), W, d[endog].astype(float), d[instruments].astype(float)
