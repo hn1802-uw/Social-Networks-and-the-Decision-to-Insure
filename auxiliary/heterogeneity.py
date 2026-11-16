@@ -19,9 +19,8 @@ HET_X = [
     "risk_averse",
     "disaster_prob",
     "intensive",
-    "general_trust",
 ]
-"""Candidate moderators X: the paper's household controls, own session, trust."""
+"""Candidate moderators X: the paper's household controls and own session."""
 
 HET_LABELS = {
     "male": "Male household head",
@@ -32,7 +31,6 @@ HET_LABELS = {
     "risk_averse": "Risk aversion",
     "disaster_prob": "Perceived disaster probability (%)",
     "intensive": "Own session intensive",
-    "general_trust": "Trusts others",
 }
 
 SEED = 481
@@ -40,7 +38,7 @@ SEED = 481
 
 def heterogeneity_sample(df_full, cap_quantile=0.99):
     """The Eq. (1) sample with complete controls and rice area capped at p99."""
-    sub = _no_info(df_full).dropna(subset=[Y_COL, T_COL, *HH_X, *HET_X[-2:]])
+    sub = _no_info(df_full).dropna(subset=[Y_COL, T_COL, *HH_X, "intensive"])
     sub = sub.reset_index(drop=True).copy()
     cap = sub["ricearea_2010"].quantile(cap_quantile)
     sub["ricearea_capped"] = sub["ricearea_2010"].clip(upper=cap)
