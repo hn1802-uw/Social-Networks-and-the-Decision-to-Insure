@@ -16,9 +16,6 @@ DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 CONTROLS = ["age", "agpop", "ricearea_2010", "literacy", "male", "risk_averse"]
 """Household controls that must be non-missing (``disaster_prob`` excluded)."""
 
-MAIN_CONTROLS = ["age", "agpop", "ricearea_capped", "literacy", "male", "risk_averse"]
-"""Controls X in the main specification, with rice area capped by ``clean``."""
-
 """The paper's controls in Table 6 (``analysis.do``): raw rice area, plus ``disaster_prob``."""
 
 VARIABLE_LABELS = {
@@ -204,35 +201,3 @@ def clean(df, controls=CONTROLS, cap_var="ricearea_2010", cap_quantile=0.99):
     report.loc[f"{cap_var} cap (p{int(cap_quantile * 100)})"] = round(cap, 1)
     report.loc["rows kept"] = len(out)
     return out.reset_index(drop=True), report
-
-
-def check_data(df):
-    """Assertions that the constructed data have the structure the design needs.
-
-    Raises ``AssertionError`` with a message if a check fails; returns a small
-    table of the checks that passed otherwise.
-    """
-    checks = {}
-
-    varying = df.groupby("address")["default"].transform("nunique") > 1
-    n_vary = int(df.loc[varying, "address"].nunique())
-    assert n_vary <= 1, f"default varies within {n_vary} natural villages"
-    checks[f"default constant within natural village (exceptions: {n_vary})"] = True
-
-    within = df.groupby("address")["pre_takeup_rate"].nunique().max()
-    assert within <= 1, "pre_takeup_rate varies within a natural village"
-    checks["pre_takeup_rate constant within natural village"] = True
-
-    nested = df.groupby("address")["village"].nunique().max()
-    assert nested == 1, "a natural village belongs to more than one admin village"
-    checks["natural villages nested in admin villages"] = True
-
-    for col in ["takeup_survey", "default", "intensive", "delay", "info_none"]:
-        assert set(df[col].dropna().unique()) <= {0, 1}, f"{col} is not binary"
-    checks["treatment and outcome indicators binary"] = True
-
-    rates = df["pre_takeup_rate"].dropna()
-    assert rates.between(0, 1).all(), "pre_takeup_rate outside [0, 1]"
-    checks["pre_takeup_rate in [0, 1]"] = True
-
-    return pd.Series(checks, name="passed").to_frame()

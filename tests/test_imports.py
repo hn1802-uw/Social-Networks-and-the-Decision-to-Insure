@@ -24,3 +24,9 @@ def test_import_plots():
     from auxiliary import plots
 
     assert hasattr(plots, "plot_dag")
+
+
+def test_import_heterogeneity():
+    from auxiliary import heterogeneity
+
+    assert hasattr(heterogeneity, "fit_causal_forest")

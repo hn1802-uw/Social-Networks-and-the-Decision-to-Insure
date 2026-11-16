@@ -1,10 +1,3 @@
-"""Every figure in the notebook.
-
-Static matplotlib figures in one consistent style: thin marks, recessive axes,
-a fixed categorical colour order, one y-axis per chart, and direct labels where
-they help.
-"""
-
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -481,6 +474,47 @@ def plot_sample_size_convergence(sample_sizes, estimates_by_size, true_effect):
         ha="left",
         fontsize=11,
         fontweight="bold",
+    )
+    fig.tight_layout()
+    return fig
+
+
+def plot_cate_distribution(cate, ate, eq1_estimate):
+    """Figure 7.1: distribution of household network effects theta(X).
+
+    Parameters
+    ----------
+    cate : array-like
+        One estimated effect of Network on take-up per household.
+    ate : float
+        Average of ``cate``.
+    eq1_estimate : float
+        The Eq. (1) coefficient on Network, for reference.
+    """
+    cate = np.asarray(cate)
+    fig, ax = plt.subplots(figsize=(9, 4.6))
+    ax.hist(cate, bins=40, color=BLUE, alpha=0.75, edgecolor="black", linewidth=0.4)
+    ax.axvline(ate, color=RED, lw=2.5, label=f"Forest average = {ate:.3f}")
+    ax.axvline(
+        eq1_estimate,
+        color=INK,
+        ls="--",
+        lw=1.6,
+        label=f"Eq. 1 estimate = {eq1_estimate:.3f}",
+    )
+    ax.grid(False)
+    ax.set_xlabel(r"Household effect of Network on take-up, $\hat\theta(X)$")
+    ax.set_ylabel("Number of households")
+    ax.legend(loc="upper right")
+    fig.tight_layout()
+    return fig
+
+
+def plot_cate_tree(interpreter, feature_names):
+    """Figure 7.2: a depth-2 tree summarising theta(X) into household types."""
+    fig, ax = plt.subplots(figsize=(13, 5.5))
+    interpreter.plot(
+        ax=ax, feature_names=feature_names, treatment_names=["Network"], fontsize=10
     )
     fig.tight_layout()
     return fig
